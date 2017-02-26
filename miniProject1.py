@@ -2,6 +2,7 @@ import cx_Oracle
 import sys
 import random
 
+# Connects to the database and returns the connection object
 def getConnection():
 	f = open('connection.txt')
 	username = f.readline().strip()
@@ -14,7 +15,9 @@ def getConnection():
 		print(sys.stderr, "Oracle code:", error.code)
 		print(sys.stderr, "Oracle message:", error.message)
 		sys.exit()
-		
+
+# Trys to log in using a user id and password
+# On success returns the user id, else returns false		
 def login(connection):
 	while (True):
 		user_id = input("Please input your user id: ")
@@ -33,7 +36,8 @@ def login(connection):
 	else:
 		curs.close()
 		return False
-		
+
+# Creates a new account and returns the user id given by the system		
 def createAccount(connection):
 	user_name = ""
 	user_email = ""
@@ -92,6 +96,7 @@ def createAccount(connection):
 	curs.close()
 	return user_id
 
+# Returns all tweets/retweets from users that the logged in user follows
 def getTweetsFromFollowedUsers(connection, user_id):
 	curs = connection.cursor()
 	curs.prepare("select * from "
@@ -106,11 +111,23 @@ def getTweetsFromFollowedUsers(connection, user_id):
 	rows = curs.fetchall()
 	curs.close()
 	return rows
+
+# Returns the number of retweets and replies for the tweet	
+def getTweetStats(connection, tweet_id):
+	curs = connection.cursor()
+	curs.prepare("select (select nvl(count(*), 0) from tweets where replyto = :tid1) as num_tweets, "
+		"(select nvl(count(*), 0) from retweets where tid = :tid2) as num_retweets from dual")
+	curs.execute(None, {'tid1':tweet_id, 'tid2':tweet_id})
+	row = curs.fetchone()
+	curs.close()
+	return row
 	
 def main():
 	connection = getConnection()
 	user_id = False
 	created_new_account = False
+	
+	# Log in or create an account
 	while (True):
 		inp = input("Type 'login' to login, 'create' to create an account, or 'exit' to exit: ")
 		if inp == "exit":
@@ -132,11 +149,13 @@ def main():
 		else:
 			print("Unrecognized input, please try again.")
 	
+	# User logged in, get the new tweets/retweets from the users the logged in user follows
 	if not created_new_account:
 		rows = getTweetsFromFollowedUsers(connection, user_id)
 		print("New tweets/retweets from the users you follow:")
 		i = 0
 		row_buffer = []
+		finished = False
 		for row in rows:
 			row_buffer.append(row)
 			i = i + 1
@@ -150,16 +169,34 @@ def main():
 					else:
 						break
 				if inp == "skip":
+					finished = True
 					break
 				elif inp == "more":
 					i = 0
 					row_buffer = []
 					continue
+				# A tweet was selected
 				else:
-					pass
+					stats = getTweetStats(connection, row_buffer[int(inp)][0])
 			else:
 				print(i, row)
 		
+		# There was not 5 tweets/retweets to print out
+		if not finished:
+			while (True):
+				inp = input("Type numbers 1-%d to view more information about the tweet, "
+							"or 'skip' to skip viewing the tweets: " % (i+1))
+				if inp == "1" or inp == "2" or inp == "3" or inp == "4" or inp == "5":
+					if int(inp) > (i+1):
+						print("There is no tweet number %d, please try again." % (inp))
+					# A tweet was selected
+					else:
+						stats = getTweetStats(connection, row_buffer[int(inp)][0])
+				elif inp == "skip":
+					break
+				else:
+					print("Unrecognized input, please try again.")
+					
 	connection.commit()
 	connection.close()
 

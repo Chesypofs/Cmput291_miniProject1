@@ -159,7 +159,8 @@ def main():
 		for row in rows:
 			row_buffer.append(row)
 			i = i + 1
-			if i > 5:
+			print(i, row)
+			if i = 5:
 				inp = ""
 				while (True):
 					inp = input("Type numbers 1-5 to view more information about the tweet, "
@@ -174,13 +175,10 @@ def main():
 				elif inp == "more":
 					i = 0
 					row_buffer = []
-					continue
 				# A tweet was selected
 				else:
 					stats = getTweetStats(connection, row_buffer[int(inp)][0])
 					break
-			else:
-				print(i, row)
 		
 		# There was not 5 tweets/retweets to print out
 		if not finished:

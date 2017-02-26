@@ -186,11 +186,11 @@ def main():
 			while (True):
 				inp = ""
 				if i > 1:
-					inp = input("Type numbers 1-%d to view more information about the tweet, "
+					inp = input("Type numbers 1-%s to view more information about the tweet, "
 						"or 'skip' to skip viewing the tweets: " % (i))
 				else:
 					inp = input("Type number 1 to view more information about the tweet, "
-						"or 'skip' to skip viewing the tweets: " % (i))
+						"or 'skip' to skip viewing the tweets: ")
 				if inp == "1" or inp == "2" or inp == "3" or inp == "4" or inp == "5":
 					if int(inp) > (i+1):
 						print("There is no tweet number %s, please try again." % (inp))

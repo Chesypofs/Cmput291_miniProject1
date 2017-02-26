@@ -188,7 +188,7 @@ def main():
 							"or 'skip' to skip viewing the tweets: " % (i+1))
 				if inp == "1" or inp == "2" or inp == "3" or inp == "4" or inp == "5":
 					if int(inp) > (i+1):
-						print("There is no tweet number %d, please try again." % (inp))
+						print("There is no tweet number %s, please try again." % (inp))
 					# A tweet was selected
 					else:
 						stats = getTweetStats(connection, row_buffer[int(inp)][0])

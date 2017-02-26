@@ -197,7 +197,7 @@ def main():
 						print("There is no tweet number %s, please try again." % (inp))
 					# A tweet was selected
 					else:
-						stats = getTweetStats(connection, row_buffer[int(inp)][0])
+						stats = getTweetStats(connection, row_buffer[int(inp)-1][0])
 				elif inp == "skip":
 					break
 				else:

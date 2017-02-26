@@ -150,11 +150,11 @@ def main():
 			print("Unrecognized input, please try again.")
 	
 	# User logged in, get the new tweets/retweets from the users the logged in user follows
+	row_buffer = []
 	if not created_new_account:
 		rows = getTweetsFromFollowedUsers(connection, user_id)
 		print("New tweets/retweets from the users you follow:")
 		i = 0
-		row_buffer = []
 		finished = False
 		for row in rows:
 			row_buffer.append(row)

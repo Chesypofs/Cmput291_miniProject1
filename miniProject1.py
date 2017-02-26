@@ -138,7 +138,7 @@ def main():
 		i = 0
 		row_buffer = []
 		for row in rows:
-			row_buffer[i] = row
+			row_buffer.append(row)
 			i = i + 1
 			if i > 5:
 				inp = ""
@@ -153,6 +153,7 @@ def main():
 					break
 				elif inp == "more":
 					i = 0
+					row_buffer = []
 					continue
 				else:
 					pass

@@ -106,7 +106,7 @@ def getTweetsFromFollowedUsers(connection, user_id):
 				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text " 
 				"from follows f, retweets t, tweets ot "
 				"where f.flwer = :id and t.usr = f.flwee and t.tid = ot.tid)) "
-				"order by tdate")
+				"order by tdate desc")
 	curs.execute(None, {'id':user_id})
 	rows = curs.fetchall()
 	curs.close()

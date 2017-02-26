@@ -178,12 +178,12 @@ def main():
 				# A tweet was selected
 				else:
 					stats = getTweetStats(connection, row_buffer[int(inp)][0])
+					break
 			else:
 				print(i, row)
 		
 		# There was not 5 tweets/retweets to print out
 		if not finished:
-			print(row_buffer)
 			while (True):
 				inp = ""
 				if i > 1:
@@ -198,6 +198,7 @@ def main():
 					# A tweet was selected
 					else:
 						stats = getTweetStats(connection, row_buffer[int(inp)-1][0])
+						break
 				elif inp == "skip":
 					break
 				else:

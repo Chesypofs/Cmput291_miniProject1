@@ -160,7 +160,7 @@ def main():
 			row_buffer.append(row)
 			i = i + 1
 			print(i, row)
-			if i = 5:
+			if i == 5:
 				inp = ""
 				while (True):
 					inp = input("Type numbers 1-5 to view more information about the tweet, "

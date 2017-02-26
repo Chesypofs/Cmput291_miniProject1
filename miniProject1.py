@@ -28,8 +28,10 @@ def login(connection):
 	curs.prepare("select * from users where usr = :id and pwd = :password")
 	curs.execute(None, {'id':user_id, 'password':user_password})
 	if curs.fetchone():
+		curs.close()
 		return user_id
 	else:
+		curs.close()
 		return False
 		
 def createAccount(connection):
@@ -90,9 +92,23 @@ def createAccount(connection):
 	curs.close()
 	return user_id
 
+def getTweetsFromFollowedUsers(connection, user_id):
+	curs = connection.cursor()
+	curs.prepare("(select t.tid, t.writer, t.tdate, t.text "
+				"from follows f, tweets t "
+				"where f.flwee = :id and t.writer = f.flwer) "
+				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text"
+				"from follows f, retweets t, tweets ot "
+				"where f.flwee = :id and t.usr = f.flwer and t.tid = ot.tid)")
+	curs.execute(None, {'id':user_id})
+	rows = curs.fetchall()
+	curs.close()
+	return rows
+	
 def main():
 	connection = getConnection()
 	user_id = False
+	created_new_account = False
 	while (True):
 		inp = input("Type 'login' to login, 'create' to create an account, or 'exit' to exit: ")
 		if inp == "exit":
@@ -107,10 +123,16 @@ def main():
 				break
 		elif inp == "create":
 			user_id = createAccount(connection)
+			connection.commit()
+			created_new_account = True
 			print("Successfully created an account and logged in.")
 			break
 		else:
 			print("Unrecognized input, please try again.")
+	
+	if not created_new_account:
+		rows = getTweetsFromFollowedUsers(connection, user_id)
+		print("New tweets/retweets from the users you follow:")
 		
 	connection.commit()
 	connection.close()

@@ -183,6 +183,7 @@ def main():
 		
 		# There was not 5 tweets/retweets to print out
 		if not finished:
+			print(row_buffer)
 			while (True):
 				inp = ""
 				if i > 1:

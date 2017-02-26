@@ -94,12 +94,14 @@ def createAccount(connection):
 
 def getTweetsFromFollowedUsers(connection, user_id):
 	curs = connection.cursor()
-	curs.prepare("(select t.tid, t.writer, t.tdate, t.text "
+	curs.prepare("select * from "
+				"((select t.tid, t.writer, t.tdate, t.text "
 				"from follows f, tweets t "
 				"where f.flwee = :id and t.writer = f.flwer) "
 				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text " 
 				"from follows f, retweets t, tweets ot "
-				"where f.flwee = :id and t.usr = f.flwer and t.tid = ot.tid)")
+				"where f.flwee = :id and t.usr = f.flwer and t.tid = ot.tid)) "
+				"order by tdate")
 	curs.execute(None, {'id':user_id})
 	rows = curs.fetchall()
 	curs.close()
@@ -133,6 +135,29 @@ def main():
 	if not created_new_account:
 		rows = getTweetsFromFollowedUsers(connection, user_id)
 		print("New tweets/retweets from the users you follow:")
+		i = 0
+		row_buffer = []
+		for row in rows:
+			row_buffer[i] = row
+			i = i + 1
+			if i > 5:
+				inp = ""
+				while (True):
+					inp = input("Type numbers 1-5 to view more information about the tweet, "
+						"'more' to view the next 5 tweets, or 'skip' to skip viewing the tweets: ")
+					if inp != "skip" and inp != "more" and inp != "1" and inp != "2" and inp != "3" and inp != "4" and inp != "5":
+						print("Unrecogzied input, please try again.")
+					else:
+						break
+				if inp == "skip":
+					break
+				elif inp == "more":
+					i = 0
+					continue
+				else:
+					pass
+			else:
+				print(i, row)
 		
 	connection.commit()
 	connection.close()

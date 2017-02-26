@@ -97,7 +97,7 @@ def getTweetsFromFollowedUsers(connection, user_id):
 	curs.prepare("(select t.tid, t.writer, t.tdate, t.text "
 				"from follows f, tweets t "
 				"where f.flwee = :id and t.writer = f.flwer) "
-				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text"
+				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text " 
 				"from follows f, retweets t, tweets ot "
 				"where f.flwee = :id and t.usr = f.flwer and t.tid = ot.tid)")
 	curs.execute(None, {'id':user_id})

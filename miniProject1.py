@@ -201,7 +201,32 @@ def main():
 					break
 				else:
 					print("Unrecognized input, please try again.")
-					
+	
+
+	while (True):
+		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")
+		
+		if inp == "search tweets":
+			break
+			
+		elif inp == "search users":
+			break
+			
+		elif inp == "compose tweet":
+			break
+			
+		elif inp == "list followers":
+			break
+			
+		elif inp == "manage lists":
+			break
+			
+		elif inp == "logout":
+			break
+			
+		else:
+			print("Unrecognized input, please try again.")
+		
 	connection.commit()
 	connection.close()
 

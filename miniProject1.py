@@ -1,6 +1,7 @@
 import cx_Oracle
 import sys
 import random
+import time
 
 # Connects to the database and returns the connection object
 def getConnection():
@@ -16,6 +17,31 @@ def getConnection():
 		print(sys.stderr, "Oracle message:", error.message)
 		sys.exit()
 
+# Asks the user if they want to login, create an account, or exit
+# and call login(), createAccount(), or exit() appropriatly
+# Returns a tuple (a, b) where A is a boolean representing
+# whether a new account was created or not, and B is the users user_id
+def loginOrCreatePrompt(connection):
+	while (True):
+		inp = input("Type 'login' to login, 'create' to create an account, or 'exit' to exit: ")
+		if inp == "exit":
+			connection.close()
+			sys.exit()
+		elif inp == "login":
+			user_id = login(connection)
+			if (user_id == False):
+				print("Invalid user id/password.")
+			else:
+				print("Successfully logged in.")
+				return (False, user_id)
+		elif inp == "create":
+			user_id = createAccount(connection)
+			connection.commit()
+			print("Successfully created an account and logged in.")
+			return (True, user_id)
+		else:
+			print("Unrecognized input, please try again.")
+			
 # Trys to log in using a user id and password
 # On success returns the user id, else returns false		
 def login(connection):
@@ -94,16 +120,90 @@ def createAccount(connection):
 	curs.prepare("insert into users values (:id, :pwd, :name, :email, :city, :timezone)")
 	curs.execute(None, {'id':user_id, 'pwd':user_password, 'name':user_name, 'email':user_email, 'city':user_city, 'timezone':user_timezone})
 	curs.close()
+	connection.commit()
 	return user_id
 
+# Displays all tweets and retweets from users that user_id follows
+# Also asks the user if they want to see more information about a tweet
+def displayTweetsAndRetweets(connection, user_id):
+	rows = getTweetsFromFollowedUsers(connection, user_id)
+	if len(rows) > 0:
+		print("Tweets/retweets from the users you follow:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+			
+			# Either 5 tweets/retweets have been printed or we have reached the end of the tweets/retweets
+			if ((i%5) == 0) or (len(rows) == i):
+				inp = ""
+				while (True):
+					# Check if we have reached the end of the tweets/retweets
+					if len(rows) == i:
+						# Check if a full 5 tweets/retweets were printed
+						if (i%5) == 0:
+							inp = input("Type numbers %s-%s to view more information about the tweet, "
+							"or 'skip' to skip viewing the tweets: " % ((i-4), i))
+						# Check if only a single tweet/retweet was printed
+						elif (i%5) == 1:
+							inp = input("Type number %s to view more information about the tweet, "
+							"or 'skip' to skip viewing the tweets: " % (i))
+						# Either 2, 3, or 4 tweets/retweets were printed
+						else:
+							inp = input("Type numbers %s-%s to view more information about the tweet, "
+							"or 'skip' to skip viewing the tweets: " % ((i-(i%5)), i))
+						
+						# Check if the input is an int representing 1 of the tweets/retweets
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass	
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+					
+					# There are still more tweets/retweets to display so offer to display the next ones aswell
+					else:							
+						inp = input("Type numbers %s-%s to view more information about the tweet, "
+						"'more' to view the next 5 tweets, or 'skip' to skip viewing the tweets: " % ((i-4), i))
+						
+						# Check if the input is an int representing 1 of the tweets/retweets
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+				# A tweet was selected
+				else:
+					displayTweetStats(connection, user_id, rows[int(inp)-1][0])
+					indices = []
+					if i%5 == 0:
+						i = i-5
+					else:
+						i = i - (i%5)
+			i = i + 1
+	else:
+		print("No tweets/retweets from users you follow.")
+		
 # Returns all tweets/retweets from users that the logged in user follows
 def getTweetsFromFollowedUsers(connection, user_id):
 	curs = connection.cursor()
 	curs.prepare("select * from "
-				"((select t.tid, t.writer, t.tdate, t.text "
+				"((select t.tid, t.writer, t.tdate, t.text, t.replyto "
 				"from follows f, tweets t "
 				"where f.flwer = :id and t.writer = f.flwee) "
-				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text " 
+				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text, ot.replyto " 
 				"from follows f, retweets t, tweets ot "
 				"where f.flwer = :id and t.usr = f.flwee and t.tid = ot.tid)) "
 				"order by tdate desc")
@@ -112,96 +212,77 @@ def getTweetsFromFollowedUsers(connection, user_id):
 	curs.close()
 	return rows
 
+def displayTweetStats(connection, user_id, tweet_id):
+	stats = getTweetStats(connection, tweet_id)
+	print(stats)
+	
+	inp = ""
+	while(True):
+		inp = input("Type 'reply' to reply to the tweet, 'retweet' to retweet the tweet, "
+		"or 'back' to return to the last screen: ")
+		if inp != "reply" and inp != "retweet" and inp != "back":
+			print("Unrecoginzed input, please try again")
+		else:
+			break
+	if inp == "reply":
+		text = ""
+		while(True):
+			text = input("Enter the text of your tweet: ")
+			if len(text) > 80:
+				print("Maximum length of tweet text is 80 characters, please try again.")
+			else:
+				break
+		composeTweet(connection, user_id, text, tweet_id)
+	elif inp == "retweet":
+		retweet(connection, user_id, tweet_id)
+	
 # Returns the number of retweets and replies for the tweet	
 def getTweetStats(connection, tweet_id):
 	curs = connection.cursor()
-	curs.prepare("select (select nvl(count(*), 0) from tweets where replyto = :tid1) as num_tweets, "
-		"(select nvl(count(*), 0) from retweets where tid = :tid2) as num_retweets from dual")
-	curs.execute(None, {'tid1':tweet_id, 'tid2':tweet_id})
+	curs.prepare("select tid, writer, tdate, text, replyto, (select nvl(count(*), 0) from tweets where replyto = :tid1) as num_tweets, "
+		"(select nvl(count(*), 0) from retweets where tid = :tid2) as num_retweets from tweets where tid = :tid3")
+	curs.execute(None, {'tid1':tweet_id, 'tid2':tweet_id, 'tid3':tweet_id})
 	row = curs.fetchone()
 	curs.close()
 	return row
+
+def composeTweet(connection, user_id, text, replyto):
+	tid = random.randrange(-2147483648, 2147483647) #-2^31 to (2^31)-1
 	
+	# Check that the tweet id is unique
+	while (True):
+		curs = connection.cursor()
+		curs.prepare("select * from tweets where tid = :tid")
+		curs.execute(None, {'tid':tid})
+		if curs.fetchone():
+			tid = random.randrange(-2147483648, 2147483647)
+		else:
+			curs.close()
+			break
+
+	curs = connection.cursor()
+	curs.prepare("insert into tweets values (:tid, :writer, :tdate, :text, :replyto)")
+	curs.execute(None, {'tid':tid, 'writer':user_id, 'tdate':time.strftime("%d-%b-%Y"), 'text':text, 'replyto':replyto})
+	curs.close()
+	connection.commit()
+	print("Successfully tweeted")
+
+def retweet(connection, user_id, tweet_id):
+	curs = connection.cursor()
+	curs.prepare("insert into retweets values (:id, :tid, :tdate)")
+	curs.execute(None, {'id':user_id, 'tid':tweet_id, 'tdate':time.strftime("%d-%b-%Y")})
+	curs.close()
+	connection.commit()
+	print("Successfully retweeted.")
+
 def main():
 	connection = getConnection()
-	user_id = False
-	created_new_account = False
+	ret = loginOrCreatePrompt(connection)
+	createdAccount = ret[0]
+	user_id = ret[1]
 	
-	# Log in or create an account
-	while (True):
-		inp = input("Type 'login' to login, 'create' to create an account, or 'exit' to exit: ")
-		if inp == "exit":
-			connection.close()
-			sys.exit()
-		elif inp == "login":
-			user_id = login(connection)
-			if (user_id == False):
-				print("Invalid user id/password.")
-			else:
-				print("Successfully logged in.")
-				break
-		elif inp == "create":
-			user_id = createAccount(connection)
-			connection.commit()
-			created_new_account = True
-			print("Successfully created an account and logged in.")
-			break
-		else:
-			print("Unrecognized input, please try again.")
-	
-	# User logged in, get the new tweets/retweets from the users the logged in user follows
-	row_buffer = []
-	if not created_new_account:
-		rows = getTweetsFromFollowedUsers(connection, user_id)
-		print("New tweets/retweets from the users you follow:")
-		i = 0
-		finished = False
-		for row in rows:
-			row_buffer.append(row)
-			i = i + 1
-			print(i, row)
-			if i == 5:
-				inp = ""
-				while (True):
-					inp = input("Type numbers 1-5 to view more information about the tweet, "
-						"'more' to view the next 5 tweets, or 'skip' to skip viewing the tweets: ")
-					if inp != "skip" and inp != "more" and inp != "1" and inp != "2" and inp != "3" and inp != "4" and inp != "5":
-						print("Unrecogzied input, please try again.")
-					else:
-						break
-				if inp == "skip":
-					finished = True
-					break
-				elif inp == "more":
-					i = 0
-					row_buffer = []
-				# A tweet was selected
-				else:
-					stats = getTweetStats(connection, row_buffer[int(inp)][0])
-					break
-		
-		# There was not 5 tweets/retweets to print out
-		if not finished:
-			while (True):
-				inp = ""
-				if i > 1:
-					inp = input("Type numbers 1-%s to view more information about the tweet, "
-						"or 'skip' to skip viewing the tweets: " % (i))
-				else:
-					inp = input("Type number 1 to view more information about the tweet, "
-						"or 'skip' to skip viewing the tweets: ")
-				if inp == "1" or inp == "2" or inp == "3" or inp == "4" or inp == "5":
-					if int(inp) > i:
-						print("There is no tweet number %s, please try again." % (inp))
-					# A tweet was selected
-					else:
-						stats = getTweetStats(connection, row_buffer[int(inp)-1][0])
-						break
-				elif inp == "skip":
-					break
-				else:
-					print("Unrecognized input, please try again.")
-	
+	if not createdAccount:
+		displayTweetsAndRetweets(connection, user_id)
 
 	while (True):
 		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")

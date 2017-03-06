@@ -246,6 +246,154 @@ def getTweetStats(connection, tweet_id):
 	curs.close()
 	return row
 
+# what I done1
+def searchAllFollowers(connection, user_id):
+
+	curs = connection.cursor()
+	curs.prepare("select flwee  from  follows "
+				"where flwer = :usr ")
+	curs.execute(None, {'usr':user_id})
+	rows = curs.fetchall()
+	curs.close()
+	return rows
+
+#what I done2
+def displayFollowerStats(connection, user_id):
+	stats = getUserStats(connection, user_id)
+	print(stats)
+	rows = getUserTweets(connection,user_id)
+	inp = ""
+	if len(rows) > 0:
+		print("tweets list,please input:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+
+			# Either 3 tweets have been printed or we have reached the end of the tweets
+			if ((i%3) == 0) or (len(rows) == i):
+				inp = ""
+				while (True):
+					# Check if we have reached the end of the tweets/retweets
+					if len(rows) == i:
+						# Check if a full 3 tweets were printed
+						if (i%3) == 0:
+							inp = input("Type 'skip' to skip viewing the tweets: " % ((i-3), i))
+						# Check if only a single tweet was printed
+						elif (i%3) == 1:
+							inp = input("Type skip' to skip viewing the tweets: " % (i))
+						# Either 2, 3 twees were printed
+						else:
+							inp = input("Type skip' to skip viewing the tweets: " % ((i-(i%3)), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+
+					# There are still more user to display so offer to display the next ones aswell
+					else:
+						inp = input("Type 'more' to view the next 5 tweets, or 'skip' to skip viewing the user: " % ((i-3), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+
+	else:
+		print("No tweet.")
+
+
+#what I done3
+def displayAllFollowers(connection,user_id):
+	inp = input("Please input a keyword   : ")
+	rows = searchAllFollowers(connection, user_id)
+	if len(rows) > 0:
+		print("Followers list,please choose:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+
+			# Either 5 Followers have been printed or we have reached the end of the users
+			if ((i%5) == 0) or (len(rows) == i):
+				inp = ""
+				while (True):
+					# Check if we have reached the end of the followers
+					if len(rows) == i:
+						# Check if a full 5 followers were printed
+						if (i%5) == 0:
+							inp = input("Type numbers %s-%s to view more information about the follower, "
+							"or 'skip' to skip viewing the follower: " % ((i-4), i))
+						# Check if only a single follower was printed
+						elif (i%5) == 1:
+							inp = input("Type number %s to view more information about the follower, "
+							"or 'skip' to skip viewing the follower: " % (i))
+						# Either 2, 3, or 4 follower were printed
+						else:
+							inp = input("Type numbers %s-%s to view more information about the follower, "
+							"or 'skip' to skip viewing the follower: " % ((i-(i%5)), i))
+
+						# Check if the input is an int representing 1 of the follower
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+
+					# There are still more follower to display so offer to display the next ones aswell
+					else:
+						inp = input("Type numbers %s-%s to view more information about the follower, "
+						"'more' to view the next 5 user, or 'skip' to skip viewing the follower: " % ((i-4), i))
+
+						# Check if the input is an int representing 1 of the follower
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+				# A user was selected
+				else:
+					displayFollowerStats(connection,  rows[int(inp)-1][0])
+					indices = []
+					if i%5 == 0:
+						i = i-5
+					else:
+						i = i - (i%5)
+			i = i + 1
+	else:
+		print("No Follower  .")
+
 def composeTweet(connection, user_id, text, replyto):
 	tid = random.randrange(-2147483648, 2147483647) #-2^31 to (2^31)-1
 	
@@ -275,6 +423,174 @@ def retweet(connection, user_id, tweet_id):
 	connection.commit()
 	print("Successfully retweeted.")
 
+# what I done4
+def searchAllUsers(connection, inp):
+
+	inp = '%' + inp + '%'
+	curs = connection.cursor()
+	curs.prepare("select name,usr from  users "
+				"where name like :keyName or (city like :keyName and name not like :keyName)"
+				"order by  length(name) asc,length(city) asc")
+	curs.execute(None, {'keyName':inp})
+	rows = curs.fetchall()
+	curs.close()
+	return rows
+
+#what I done5
+def displayAllUsers(connection):
+	inp = input("Please input a keyword   : ")
+	rows = searchAllUsers(connection, inp)
+	if len(rows) > 0:
+		print("users list,please choose:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+
+			# Either 5 user have been printed or we have reached the end of the users
+			if ((i%5) == 0) or (len(rows) == i):
+				inp = ""
+				while (True):
+					# Check if we have reached the end of the users
+					if len(rows) == i:
+						# Check if a full 5 user were printed
+						if (i%5) == 0:
+							inp = input("Type numbers %s-%s to view more information about the user, "
+							"or 'skip' to skip viewing the users: " % ((i-4), i))
+						# Check if only a single user was printed
+						elif (i%5) == 1:
+							inp = input("Type number %s to view more information about the user, "
+							"or 'skip' to skip viewing the users: " % (i))
+						# Either 2, 3, or 4 user were printed
+						else:
+							inp = input("Type numbers %s-%s to view more information about the tweet, "
+							"or 'skip' to skip viewing the users: " % ((i-(i%5)), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+
+					# There are still more user to display so offer to display the next ones aswell
+					else:
+						inp = input("Type numbers %s-%s to view more information about the user, "
+						"'more' to view the next 5 user, or 'skip' to skip viewing the user: " % ((i-4), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+				# A user was selected
+				else:
+					displayUserStats(connection,  rows[int(inp)-1][1])
+					indices = []
+					if i%5 == 0:
+						i = i-5
+					else:
+						i = i - (i%5)
+			i = i + 1
+	else:
+		print("No suit users  .")
+
+#what I done6
+def getUserStats(connection, user_id):
+	curs = connection.cursor()
+	curs.prepare("select count(tid) tn, count(flwee) fne, count(flwer) fner  from users,follows  where usr= :user1 or flwee = :flwee1 or flwer = :flwer1")
+	curs.execute(None, {'user1':user_id, 'flwee1':user_id, 'flwer1':user_id})
+	row = curs.fetchone()
+	curs.close()
+	return row
+
+#what I done7
+def getUserTweets(connection, user_id):
+	curs = connection.cursor()
+	curs.prepare("select *   from tweets  where writer= :user1 order by tdate desc ")
+	curs.execute(None, {'user1':user_id })
+	row = curs.fetchall()
+	curs.close()
+	return row
+
+#what I done8
+def displayUserStats(connection, user_id):
+	stats = getUserStats(connection, user_id)
+	print(stats)
+	rows = getUserTweets(connection,user_id)
+	inp = ""
+	if len(rows) > 0:
+		print("tweets list,please input:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+
+			# Either 3 tweets have been printed or we have reached the end of the tweets
+			if ((i%3) == 0) or (len(rows) == i):
+				inp = ""
+				while (True):
+					# Check if we have reached the end of the tweets/retweets
+					if len(rows) == i:
+						# Check if a full 3 tweets were printed
+						if (i%3) == 0:
+							inp = input("Type 'skip' to skip viewing the tweets: " % ((i-3), i))
+						# Check if only a single tweet was printed
+						elif (i%3) == 1:
+							inp = input("Type skip' to skip viewing the tweets: " % (i))
+						# Either 2, 3 twees were printed
+						else:
+							inp = input("Type skip' to skip viewing the tweets: " % ((i-(i%3)), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+
+					# There are still more user to display so offer to display the next ones aswell
+					else:
+						inp = input("Type 'more' to view the next 5 tweets, or 'skip' to skip viewing the user: " % ((i-3), i))
+
+						# Check if the input is an int representing 1 of the user
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+
+	else:
+		print("No tweet.")
+
+	
 def main():
 	connection = getConnection()
 	ret = loginOrCreatePrompt(connection)
@@ -291,12 +607,14 @@ def main():
 			break
 			
 		elif inp == "search users":
+			displayAllUsers(connection)
 			break
 			
 		elif inp == "compose tweet":
 			break
 			
 		elif inp == "list followers":
+			displayAllFollowers(connection,user_id)
 			break
 			
 		elif inp == "manage lists":

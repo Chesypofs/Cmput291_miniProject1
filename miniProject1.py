@@ -1,9 +1,12 @@
 import cx_Oracle
 import sys
 import random
-import time
+import datetime
 
 # Connects to the database and returns the connection object
+# Uses a file named "connection.txt" where the first line
+# is the username and the second line is the password
+# to log into oracle
 def getConnection():
 	f = open('connection.txt')
 	username = f.readline().strip()
@@ -54,7 +57,7 @@ def login(connection):
 			print("User id must be an integer.")
 	user_password = input("Please input your password: ")
 	curs = connection.cursor()
-	curs.prepare("select * from users where usr = :id and pwd = :password")
+	curs.prepare("select * from users where usr = :id and trim(pwd) = :password")
 	curs.execute(None, {'id':user_id, 'password':user_password})
 	if curs.fetchone():
 		curs.close()
@@ -128,15 +131,17 @@ def createAccount(connection):
 def displayTweetsAndRetweets(connection, user_id):
 	rows = getTweetsFromFollowedUsers(connection, user_id)
 	if len(rows) > 0:
+		print()
 		print("Tweets/retweets from the users you follow:")
 		i = 1
 		indices = []
 		while (True):
 			indices.append(i)
-			print(i, rows[i-1])
+			print(str(i) + " (" + str(rows[i-1][0]) + ", " + str(rows[i-1][1]) + ", " + str(rows[i-1][2]) + ", " + str(rows[i-1][3]).strip() + ", " + str(rows[i-1][4]) + ")")
 			
 			# Either 5 tweets/retweets have been printed or we have reached the end of the tweets/retweets
 			if ((i%5) == 0) or (len(rows) == i):
+				print()
 				inp = ""
 				while (True):
 					# Check if we have reached the end of the tweets/retweets
@@ -152,7 +157,7 @@ def displayTweetsAndRetweets(connection, user_id):
 						# Either 2, 3, or 4 tweets/retweets were printed
 						else:
 							inp = input("Type numbers %s-%s to view more information about the tweet, "
-							"or 'skip' to skip viewing the tweets: " % ((i-(i%5)), i))
+							"or 'skip' to skip viewing the tweets: " % ((i-(i%5) + 1), i))
 						
 						# Check if the input is an int representing 1 of the tweets/retweets
 						try:
@@ -184,6 +189,7 @@ def displayTweetsAndRetweets(connection, user_id):
 					break
 				elif inp == "more":
 					indices = []
+					print()
 				# A tweet was selected
 				else:
 					displayTweetStats(connection, user_id, rows[int(inp)-1][0])
@@ -212,9 +218,12 @@ def getTweetsFromFollowedUsers(connection, user_id):
 	curs.close()
 	return rows
 
+# Displays the tweet stats and asks the user if he wants to reply or retweet
 def displayTweetStats(connection, user_id, tweet_id):
 	stats = getTweetStats(connection, tweet_id)
-	print(stats)
+	print()
+	print("(" + str(stats[0]) + ", " + str(stats[1]) + ", " + str(stats[2]) + ", " + str(stats[3]).strip() + ", " + str(stats[4]) + ", " +  str(stats[5]) + ", " + str(stats[6]) + ")")
+	print()
 	
 	inp = ""
 	while(True):
@@ -225,14 +234,7 @@ def displayTweetStats(connection, user_id, tweet_id):
 		else:
 			break
 	if inp == "reply":
-		text = ""
-		while(True):
-			text = input("Enter the text of your tweet: ")
-			if len(text) > 80:
-				print("Maximum length of tweet text is 80 characters, please try again.")
-			else:
-				break
-		composeTweet(connection, user_id, text, tweet_id)
+		displayComposeTweet(connection, user_id, tweet_id)
 	elif inp == "retweet":
 		retweet(connection, user_id, tweet_id)
 	
@@ -320,7 +322,6 @@ def displayFollowerStats(connection, user_id):
 	else:
 		print("No tweet.")
 
-
 #what I done3
 def displayAllFollowers(connection,user_id):
 	inp = input("Please input a keyword   : ")
@@ -394,10 +395,32 @@ def displayAllFollowers(connection,user_id):
 	else:
 		print("No Follower  .")
 
-def composeTweet(connection, user_id, text, replyto):
+# Gets the tweet text from the user for a new tweet
+def displayComposeTweet(connection, user_id, replyto):
+	text = ""
+	hashtags = []
+	while(True):
+		text = input("Enter the text of your tweet: ")
+		textGood = True
+		hashtags = getHashtags(text)
+		for hashtag in hashtags:
+			if len(hashtag) > 10:
+				print("Maximum length of a hashtag is 10 characters, please try again.")
+				textGood = False
+		if len(hashtags) > len(set(hashtags)):
+			print("You can only use a hashtag once in a single tweet, please try again.")
+			textGood = False
+		if len(text) > 80:
+			print("Maximum length of tweet text is 80 characters, please try again.")
+			textGood = False
+		if textGood:
+			break
+	composeTweet(connection, user_id, text, replyto, hashtags)
+
+# Creates a new tweet and adds the hashtags to the hashtag and mentions tables
+def composeTweet(connection, user_id, text, replyto, hashtags):
+	# Get a tweet id and check that it is unique
 	tid = random.randrange(-2147483648, 2147483647) #-2^31 to (2^31)-1
-	
-	# Check that the tweet id is unique
 	while (True):
 		curs = connection.cursor()
 		curs.prepare("select * from tweets where tid = :tid")
@@ -408,17 +431,63 @@ def composeTweet(connection, user_id, text, replyto):
 			curs.close()
 			break
 
+	# Insert the tweet into the tweets table
 	curs = connection.cursor()
 	curs.prepare("insert into tweets values (:tid, :writer, :tdate, :text, :replyto)")
-	curs.execute(None, {'tid':tid, 'writer':user_id, 'tdate':time.strftime("%d-%b-%Y"), 'text':text, 'replyto':replyto})
-	curs.close()
+	curs.execute(None, {'tid':tid, 'writer':user_id, 'tdate':datetime.datetime.now(), 'text':text, 'replyto':replyto})
 	connection.commit()
+	curs.close()
+	
+	# Add the hashtags to the mentions and hashtag tables
+	for hashtag in hashtags:
+		curs =  connection.cursor()
+		curs.prepare("select * from hashtags where trim(term) = :htag")
+		curs.execute(None, {'htag':hashtag})
+		row = curs.fetchone()
+		if not (row):
+			# This is a new hashtag to add it to the hashtag table
+			curs2 = connection.cursor()
+			curs2.prepare("insert into hashtags values (:term)")
+			curs2.execute(None, {'term':hashtag})
+			connection.commit()
+			curs2.close()
+		curs.close()
+		
+		# Add the hashtag to the mentions table
+		curs = connection.cursor()
+		curs.prepare("insert into mentions values (:tid, :term)")
+		curs.execute(None, {'tid':tid, 'term':hashtag})
+		connection.commit()
+		curs.close()
+	
 	print("Successfully tweeted")
+	
 
+# Gets all the hashtags from a string
+def getHashtags(str):
+	strs = str.split()
+	hashtags = []
+	for st in strs:
+		if st[0] == '#' and len(st) > 1:
+			if st[1:] not in hashtags:
+				hashtags.append(st[1:])
+	return hashtags	
+
+# Creates a new retweet
 def retweet(connection, user_id, tweet_id):
 	curs = connection.cursor()
+	curs.prepare("select * from retweets where tid = :tid and usr = :id")
+	curs.execute(None, {'tid':tweet_id, 'id':user_id})
+	
+	if curs.fetchone():
+		print("You cannot retweet a tweet more than once.")
+		curs.close()
+		return
+	curs.close()
+
+	curs = connection.cursor()
 	curs.prepare("insert into retweets values (:id, :tid, :tdate)")
-	curs.execute(None, {'id':user_id, 'tid':tweet_id, 'tdate':time.strftime("%d-%b-%Y")})
+	curs.execute(None, {'id':user_id, 'tid':tweet_id, 'tdate':datetime.datetime.now()})
 	curs.close()
 	connection.commit()
 	print("Successfully retweeted.")
@@ -590,6 +659,211 @@ def displayUserStats(connection, user_id):
 	else:
 		print("No tweet.")
 
+# Prompt for managing lists
+def manageLists(connection, user_id):
+	inp = ""
+	while (True):
+		inp = input("Type 'my lists' to view your lists, 'on lists' to view the lists you are on, 'create list' to create a new list, or 'back' to return to the last screen: ")
+		if inp == "my lists":
+			displayMyLists(connection, user_id)
+		elif inp == "on lists":
+			displayOnLists(connection, user_id)
+		elif inp == "create list":
+			displayCreateList(connection, user_id)
+		elif inp == "back":
+			break
+		else:
+			print("Unrecognized input, please try again.")
+
+# Displays all of the user's lists
+def displayMyLists(connection, user_id):
+	lists = getMyLists(connection, user_id)
+	
+	i = 1
+	for row in lists:
+		print(i, row[0])
+		i = i + 1
+	
+	inp = ""
+	if i > 1:
+		while (True):
+			if i > 2:
+				inp = input("Type numbers 1-%s to manage the list or 'back' to return to the last screen: " % (i - 1))
+			else:
+				inp = input("Type number 1 to manage the list or 'back' to return to the last screen: ")
+				
+			if inp == "back":
+				break
+			elif int(inp) > 0 and int(inp) < i:
+				displayList(connection, user_id, lists[int(inp) - 1][0])
+				# reprint the lists
+				i = 1
+				for row in lists:
+					print(i, row[0])
+					i = i + 1
+			else:
+				print("Unrecognized input, please try again.")
+		
+# Returns all the lists that the user has
+def getMyLists(connection, user_id):
+	curs = connection.cursor()
+	curs.prepare("select lname from lists where owner = :owner")
+	curs.execute(None, {'owner':user_id})
+	rows = curs.fetchall()
+	curs.close()
+	return rows
+
+# Displays the members of the list and gives the option to add or remove a member from the list
+def displayList(connection, user_id, listName):
+	curs = connection.cursor()
+	curs.prepare("select member from includes where lname = :listName")
+	curs.execute(None, {'listName':listName})
+	rows = curs.fetchall()
+	curs.close
+	
+	if len(rows) > 0:
+		print("List Members:")
+		for row in rows:
+			print(row[0])
+	else:
+		print("This list has no members.")
+	
+	inp = ""
+	while (True):
+		inp = input("Type 'add [member]' to add [member] to the list, 'remove [member] to remove [member] from the list, or 'back' to return to the last screen: ")
+		if inp == "back":
+			break
+		elif len(inp) > 4 and inp[:4] == "add ":
+			# check that the member exists
+			try:
+				memberId = int(inp[4:])
+				curs = connection.cursor()
+				curs.prepare("select * from users where usr = :userId")
+				curs.execute(None, {'userId':memberId})
+				row1 = curs.fetchone()
+				curs.close()
+				
+				curs = connection.cursor()
+				curs.prepare("select * from includes where lname = :listName and member = :member")
+				curs.execute(None, {'listName':listName, 'member':memberId})
+				row2 = curs.fetchone()
+				curs.close()
+				
+				if not row1:
+					print("The id entered does not correspond to a user, please try again.")
+				elif row2:
+					print("The user is already included in the list, please try again.")
+				else:
+					addMemberToList(connection, user_id, listName, memberId)
+					# reprint the lists
+					curs = connection.cursor()
+					curs.prepare("select member from includes where lname = :listName")
+					curs.execute(None, {'listName':listName})
+					rows = curs.fetchall()
+					curs.close()
+					
+					if len(rows) > 0:
+						print("List Members:")
+						for row in rows:
+							print(row[0])
+					else:
+						print("This list has no members.")
+						
+			except ValueError:
+				print("Member to add must be a user id as a number, please try again.")
+				
+		elif len(inp) > 7 and inp [:7] == "remove ":
+			# check that the member is on the list
+			try:
+				memberId = int(inp[7:])
+				curs = connection.cursor()
+				curs.prepare("select * from includes where lname = :listName and member = :member")
+				curs.execute(None, {'listName':listName, 'member':memberId})
+				row = curs.fetchone()
+				curs.close()
+				if not row:
+					print("The user id entered is not on the list, please try again.")
+				else:
+					removeMemberFromList(connection, user_id, listName, memberId)
+					# reprint the lists
+					curs = connection.cursor()
+					curs.prepare("select member from includes where lname = :listName")
+					curs.execute(None, {'listName':listName})
+					rows = curs.fetchall()
+					curs.close()
+	
+					if len(rows) > 0:
+						print("List Members:")
+						for row in rows:
+							print(row[0])
+					else:
+						print("This list has no members")
+						
+			except ValueError:
+				print("Member to remove must be a user id as a number, please try again.")
+		else:
+			print("Unrecognized input, please try again.")
+	
+# Displays all the lists that the user is on
+def displayOnLists(connection, user_id):
+	lists = getOnLists(connection, user_id)
+	
+	for row in lists:
+		print(row)
+
+# Returns all the lists that a user is currently on
+def getOnLists(connection, user_id):
+	curs = connection.cursor()
+	curs.prepare("select l.lname, l.owner from lists l, includes i where l.lname = i.lname and i.member = :member")
+	curs.execute(None, {'member':user_id})
+	rows = curs.fetchall()
+	curs.close()
+	return rows
+
+# Asks the user for the name of a new list to create and creates it
+def displayCreateList(connection, user_id):
+	listName = ""
+	while (True):
+		listName = input("Type the name of the new list: ")
+		if len(listName) > 12:
+			print("Maximum length of list name is 12 characters, please try again.")
+		else:	
+			# Check that this name has not already been used
+			curs = connection.cursor()
+			curs.prepare("select * from lists where trim(lname) = :listName")
+			curs.execute(None, {'listName':listName})
+			row = curs.fetchone()
+			if row:
+				print("List name is already in use, please try another name.")
+				curs.close()
+			else:
+				curs.close()
+				break
+	curs = connection.cursor()
+	curs.prepare("insert into lists values (:listName, :owner)")
+	curs.execute(None, {'listName':listName, 'owner':user_id})
+	connection.commit()
+	curs.close()
+	print("Successfully created a new list.")
+	
+
+# Adds a new member to an existing list
+def addMemberToList(connection, user_id, listName, member):
+	curs = connection.cursor()
+	curs.prepare("insert into includes values (:listName, :member)")
+	curs.execute(None, {'listName':listName, 'member':member})
+	connection.commit()
+	curs.close()
+	print("Successfully added member to list.")
+
+# Removes a member from an existing list
+def removeMemberFromList(connection, user_id, listName, member):
+	curs = connection.cursor()
+	curs.prepare("delete from includes where member = :member")
+	curs.execute(None, {'member':member})
+	connection.commit()
+	curs.close()
+	print("Successfully removed member from list.")
 	
 def main():
 	connection = getConnection()
@@ -604,22 +878,20 @@ def main():
 		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")
 		
 		if inp == "search tweets":
-			break
-			
+			pass
+		
 		elif inp == "search users":
 			displayAllUsers(connection)
-			break
 			
 		elif inp == "compose tweet":
-			break
+			displayComposeTweet(connection, user_id, None)
 			
 		elif inp == "list followers":
 			displayAllFollowers(connection,user_id)
-			break
 			
 		elif inp == "manage lists":
-			break
-			
+			manageLists(connection, user_id)
+		
 		elif inp == "logout":
 			break
 			

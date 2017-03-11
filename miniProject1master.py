@@ -834,6 +834,115 @@ def removeMemberFromList(connection, user_id, listName, member):
 	connection.commit()
 	curs.close()
 	print("Successfully removed member from list.")
+
+def search(connection, inp):
+    while True:
+        if len(inp)==0:
+            print("Empty keyword, try again!")
+        else:
+            list= inp.split()
+            break
+    for item in list:
+        item = item.strip()
+    result=[]
+    for item in list:
+        newitem = "%"+"#"+item+"%"
+        item = "%" + item + "%"
+        curs = connection.cursor()
+        curs.prepare("select * from tweets where text like : item order by tdate desc")
+        #curs.prepare("select * from (select * from tweets where text like : item  order by tdate desc)"
+	                 #"union all select * from (select * from tweets where text like: newitem order by tdate desc)")
+        #curs.execute(None,{'item': item,'newitem': newitem})
+        curs.execute(None,{'item': item})
+        rows=curs.fetchall()
+        for row in rows:
+            result.append(row)
+
+    curs.close()
+    return result
+
+def displayAllTweets(connection):
+	inp = input("Please input keyword: ")
+	rows = search(connection, inp)
+	if len(rows) > 0:
+		print("tweets list,please choose:")
+		i = 1
+		indices = []
+		while (True):
+			indices.append(i)
+			print(i, rows[i-1])
+
+			# Either 5 tweets have been printed or we have reached the end of the tweets
+			if ((i%5) == 0) or (len(rows) == i):
+				inp = ""
+
+				while (True):
+					# Check if we have reached the end of the tweets
+					if len(rows) == i:
+						# Check if a full 5 tweets were printed
+						if (i%5) == 0:
+							inp = input("Type numbers %s-%s to view more information about the tweets, "
+							"or 'skip' to skip viewing the tweets: " % ((i-4), i))
+
+						# Check if only a single tweet was printed
+						elif (i%5) == 1:
+							inp = input("Type number %s to view more information about the tweets, "
+							"or 'skip' to skip viewing the tweets: " % (i))
+
+						# Either 2, 3, or 4 tweet was printed
+						else:
+							inp = input("Type numbers %s-%s to view more information about the tweets, "
+							"or 'skip' to skip viewing the tweets: " % ((i-(i%5)+1), i))
+
+
+						# Check if the input is an int representing 1 of the tweet
+						try:
+							if int(inp) in indices:
+								break
+						except:
+							pass
+						if inp == "skip":
+							break
+						else:
+							print("Unrecognized input, please try again.")
+
+					# There are still more tweets to display so offer to display the next ones aswell
+					else:
+						inp = input("Type numbers %s-%s to view more information about the tweets, "
+						"'more' to view the next 5 tweets, or 'skip' to skip viewing the tweets: " % ((i-4), i))
+						# Check if the input is an int representing 1 of the tweet
+						try:
+							if int(inp) in indices:
+								break
+
+						except:
+							pass
+						if inp == "skip" or inp == "more":
+							break
+
+						else:
+							print("Unrecognized input, please try again.")
+				if inp == "skip":
+					break
+				elif inp == "more":
+					indices = []
+
+				# A tweet was selected
+				else:
+					#displayTweetStats(connection,  rows[int(inp)-1][1],user_id)
+                                        displayTweetStats(connection, rows[int(inp)-1][0], rows[int(inp)-1][1])
+                                        
+                                       
+                                        indices = []
+                                        if i%5 == 0:
+                                            i = i-5
+                                        else:
+                                            i = i - (i%5)
+			i = i + 1
+	else:
+		print("No suit tweets .")
+	   
+	
 	
 def main():
 	connection = getConnection()
@@ -852,7 +961,7 @@ def main():
 		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")
 		
 		if inp == "search tweets":
-			pass
+			displayAllTweets(connection)
 		
 		elif inp == "search users":
 			displayAllUsers(connection, user_id)
@@ -876,4 +985,4 @@ def main():
 	connection.close()
 
 if __name__ == "__main__":
-	main()
+    main()

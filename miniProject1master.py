@@ -45,9 +45,9 @@ def displayLoginOrCreate(connection):
 			return (True, user_id)
 		else:
 			print("Unrecognized input, please try again.")
-			
+
 # Trys to log in using a user id and password
-# On success returns the user id, else returns false		
+# On success returns the user id, else returns false
 def login(connection):
 	while (True):
 		user_id = input("Please input your user id: ")
@@ -67,7 +67,7 @@ def login(connection):
 		curs.close()
 		return False
 
-# Creates a new account and returns the user id given by the system		
+# Creates a new account and returns the user id given by the system
 def createAccount(connection):
 	user_name = ""
 	user_email = ""
@@ -106,7 +106,7 @@ def createAccount(connection):
 			print("Maximum length of password is 4.")
 		else:
 			break
-			
+
 	# Check that the user id is unique
 	while (True):
 		curs = connection.cursor()
@@ -119,7 +119,7 @@ def createAccount(connection):
 			print("User id is: ", user_id)
 			curs.close()
 			break
-	
+
 	curs = connection.cursor()
 	curs.prepare("insert into users values (:id, :pwd, :name, :email, :city, :timezone)")
 	curs.execute(None, {'id':user_id, 'pwd':user_password, 'name':user_name, 'email':user_email, 'city':user_city, 'timezone':user_timezone})
@@ -139,7 +139,7 @@ def displayTweetsAndRetweets(connection, user_id):
 		while (True):
 			indices.append(i)
 			print(str(i) + " (" + str(rows[i-1][0]) + ", " + str(rows[i-1][1]) + ", " + str(rows[i-1][2]) + ", " + str(rows[i-1][3]).strip() + ", " + str(rows[i-1][4]) + ")")
-			
+
 			# Either 5 tweets/retweets have been printed or we have reached the end of the tweets/retweets
 			if ((i%5) == 0) or (len(rows) == i):
 				print()
@@ -159,23 +159,23 @@ def displayTweetsAndRetweets(connection, user_id):
 						else:
 							inp = input("Type numbers %s-%s to view more information about the tweet, "
 							"or 'skip' to skip viewing the tweets: " % ((i-(i%5) + 1), i))
-						
+
 						# Check if the input is an int representing 1 of the tweets/retweets
 						try:
 							if int(inp) in indices:
 								break
 						except:
-							pass	
+							pass
 						if inp == "skip":
 							break
 						else:
 							print("Unrecognized input, please try again.")
-					
+
 					# There are still more tweets/retweets to display so offer to display the next ones aswell
-					else:							
+					else:
 						inp = input("Type numbers %s-%s to view more information about the tweet, "
 						"'more' to view the next 5 tweets, or 'skip' to skip viewing the tweets: " % ((i-4), i))
-						
+
 						# Check if the input is an int representing 1 of the tweets/retweets
 						try:
 							if int(inp) in indices:
@@ -202,7 +202,7 @@ def displayTweetsAndRetweets(connection, user_id):
 			i = i + 1
 	else:
 		print("No tweets/retweets from users you follow.")
-		
+
 # Returns all tweets/retweets from users that the logged in user follows
 def getTweetsFromFollowedUsers(connection, user_id):
 	curs = connection.cursor()
@@ -210,7 +210,7 @@ def getTweetsFromFollowedUsers(connection, user_id):
 				"((select t.tid, t.writer, t.tdate, t.text, t.replyto "
 				"from follows f, tweets t "
 				"where f.flwer = :id and t.writer = f.flwee) "
-				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text, ot.replyto " 
+				"union (select t.tid, t.usr as writer, t.rdate as tdate, ot.text, ot.replyto "
 				"from follows f, retweets t, tweets ot "
 				"where f.flwer = :id and t.usr = f.flwee and t.tid = ot.tid)) "
 				"order by tdate desc")
@@ -225,7 +225,7 @@ def displayTweetStats(connection, user_id, tweet_id):
 	print()
 	print("(" + str(stats[0]) + ", " + str(stats[1]) + ", " + str(stats[2]) + ", " + str(stats[3]).strip() + ", " + str(stats[4]) + ", " +  str(stats[5]) + ", " + str(stats[6]) + ")")
 	print()
-	
+
 	inp = ""
 	while(True):
 		inp = input("Type 'reply' to reply to the tweet, 'retweet' to retweet the tweet, "
@@ -238,8 +238,8 @@ def displayTweetStats(connection, user_id, tweet_id):
 		displayComposeTweet(connection, user_id, tweet_id)
 	elif inp == "retweet":
 		retweet(connection, user_id, tweet_id)
-	
-# Returns the number of retweets and replies for the tweet	
+
+# Returns the number of retweets and replies for the tweet
 def getTweetStats(connection, tweet_id):
 	curs = connection.cursor()
 	curs.prepare("select tid, writer, tdate, text, replyto, (select nvl(count(*), 0) from tweets where replyto = :tid1) as num_tweets, "
@@ -253,8 +253,8 @@ def getTweetStats(connection, tweet_id):
 def searchAllFollowers(connection, user_id):
 
 	curs = connection.cursor()
-	curs.prepare("select *  from  follows "
-				"where flwee = :usr ")
+	curs.prepare("select flwer,flwee,start_date,name from follows, users "
+				"where flwee = :usr and usr = flwer")
 	curs.execute(None, {'usr':user_id})
 	rows = curs.fetchall()
 	curs.close()
@@ -400,7 +400,7 @@ def composeTweet(connection, user_id, text, replyto, hashtags):
 	curs.execute(None, {'tid':tid, 'writer':user_id, 'tdate':datetime.datetime.now(), 'text':text, 'replyto':replyto})
 	connection.commit()
 	curs.close()
-	
+
 	# Add the hashtags to the mentions and hashtag tables
 	for hashtag in hashtags:
 		curs =  connection.cursor()
@@ -415,16 +415,16 @@ def composeTweet(connection, user_id, text, replyto, hashtags):
 			connection.commit()
 			curs2.close()
 		curs.close()
-		
+
 		# Add the hashtag to the mentions table
 		curs = connection.cursor()
 		curs.prepare("insert into mentions values (:tid, :term)")
 		curs.execute(None, {'tid':tid, 'term':hashtag})
 		connection.commit()
 		curs.close()
-	
+
 	print("Successfully tweeted")
-	
+
 # Gets all the hashtags from a string
 def getHashtags(str):
 	strs = str.split()
@@ -433,14 +433,14 @@ def getHashtags(str):
 		if st[0] == '#' and len(st) > 1:
 			if st[1:] not in hashtags:
 				hashtags.append(st[1:])
-	return hashtags	
+	return hashtags
 
 # Creates a new retweet
 def retweet(connection, user_id, tweet_id):
 	curs = connection.cursor()
 	curs.prepare("select * from retweets where tid = :tid and usr = :id")
 	curs.execute(None, {'tid':tweet_id, 'id':user_id})
-	
+
 	if curs.fetchone():
 		print("You cannot retweet a tweet more than once.")
 		curs.close()
@@ -460,9 +460,9 @@ def searchAllUsers(connection, inp):
 	inp = '%' + inp + '%'
 	curs = connection.cursor()
 
-	curs.prepare("select * from (select name,usr,city from users  where name like :keyName order by length(trim(name)) asc) "
+	curs.prepare("select * from (select name,usr,city from users  where name like :keyName order by length(trim(name)) asc, length(trim(city)) asc ) "
 			" union  all select * from (select name,usr,city from users  where city like :keyName and name not like :keyName "
-			" order by  length(trim(city)) asc)")
+			" order by  length(trim(city)) asc,length(trim(name)) asc)")
 
 	curs.execute(None, {'keyName':inp})
 	rows = curs.fetchall()
@@ -577,7 +577,7 @@ def getUserTweets(connection, user_id):
 def displayUserStats(connection, user,user_id):
 
 	stats = getUserStats(connection, user)
-	print("the number of tweets is ",stats[0]," the number of users being followed is ",stats[1],"the number of followers is " ,stats[2])
+	print("the number of tweets is ",stats[0]," the number of users being followed is ",stats[2],"the number of followers is " ,stats[1])
 	rows = getUserTweets(connection,user)
 	inp = ""
 	if len(rows) > 0:
@@ -607,7 +607,7 @@ def displayUserStats(connection, user,user_id):
 							break
 						else:
 							print("Unrecognized input, please try again.")
-							
+
 				if inp == "skip":
 					break
 				elif inp == "more":
@@ -649,12 +649,12 @@ def displayManageLists(connection, user_id):
 # Displays all of the user's lists
 def displayMyLists(connection, user_id):
 	lists = getMyLists(connection, user_id)
-	
+
 	i = 1
 	for row in lists:
 		print(i, row[0])
 		i = i + 1
-	
+
 	inp = ""
 	if i > 1:
 		while (True):
@@ -662,7 +662,7 @@ def displayMyLists(connection, user_id):
 				inp = input("Type numbers 1-%s to manage the list or 'back' to return to the last screen: " % (i - 1))
 			else:
 				inp = input("Type number 1 to manage the list or 'back' to return to the last screen: ")
-				
+
 			if inp == "back":
 				break
 			elif int(inp) > 0 and int(inp) < i:
@@ -674,7 +674,7 @@ def displayMyLists(connection, user_id):
 					i = i + 1
 			else:
 				print("Unrecognized input, please try again.")
-		
+
 # Returns all the lists that the user has
 def getMyLists(connection, user_id):
 	curs = connection.cursor()
@@ -691,14 +691,14 @@ def displayList(connection, user_id, listName):
 	curs.execute(None, {'listName':listName})
 	rows = curs.fetchall()
 	curs.close
-	
+
 	if len(rows) > 0:
 		print("List Members:")
 		for row in rows:
 			print(row[0])
 	else:
 		print("This list has no members.")
-	
+
 	inp = ""
 	while (True):
 		inp = input("Type 'add [member]' to add [member] to the list, 'remove [member] to remove [member] from the list, or 'back' to return to the last screen: ")
@@ -713,13 +713,13 @@ def displayList(connection, user_id, listName):
 				curs.execute(None, {'userId':memberId})
 				row1 = curs.fetchone()
 				curs.close()
-				
+
 				curs = connection.cursor()
 				curs.prepare("select * from includes where lname = :listName and member = :member")
 				curs.execute(None, {'listName':listName, 'member':memberId})
 				row2 = curs.fetchone()
 				curs.close()
-				
+
 				if not row1:
 					print("The id entered does not correspond to a user, please try again.")
 				elif row2:
@@ -732,17 +732,17 @@ def displayList(connection, user_id, listName):
 					curs.execute(None, {'listName':listName})
 					rows = curs.fetchall()
 					curs.close()
-					
+
 					if len(rows) > 0:
 						print("List Members:")
 						for row in rows:
 							print(row[0])
 					else:
 						print("This list has no members.")
-						
+
 			except ValueError:
 				print("Member to add must be a user id as a number, please try again.")
-				
+
 		elif len(inp) > 7 and inp [:7] == "remove ":
 			# check that the member is on the list
 			try:
@@ -762,23 +762,23 @@ def displayList(connection, user_id, listName):
 					curs.execute(None, {'listName':listName})
 					rows = curs.fetchall()
 					curs.close()
-	
+
 					if len(rows) > 0:
 						print("List Members:")
 						for row in rows:
 							print(row[0])
 					else:
 						print("This list has no members")
-						
+
 			except ValueError:
 				print("Member to remove must be a user id as a number, please try again.")
 		else:
 			print("Unrecognized input, please try again.")
-	
+
 # Displays all the lists that the user is on
 def displayOnLists(connection, user_id):
 	lists = getOnLists(connection, user_id)
-	
+
 	for row in lists:
 		print(row)
 
@@ -798,7 +798,7 @@ def displayCreateList(connection, user_id):
 		listName = input("Type the name of the new list: ")
 		if len(listName) > 12:
 			print("Maximum length of list name is 12 characters, please try again.")
-		else:	
+		else:
 			# Check that this name has not already been used
 			curs = connection.cursor()
 			curs.prepare("select * from lists where trim(lname) = :listName")
@@ -816,7 +816,7 @@ def displayCreateList(connection, user_id):
 	connection.commit()
 	curs.close()
 	print("Successfully created a new list.")
-	
+
 # Adds a new member to an existing list
 def addMemberToList(connection, user_id, listName, member):
 	curs = connection.cursor()
@@ -931,8 +931,8 @@ def displayAllTweets(connection):
 				else:
 					#displayTweetStats(connection,  rows[int(inp)-1][1],user_id)
                                         displayTweetStats(connection, rows[int(inp)-1][0], rows[int(inp)-1][1])
-                                        
-                                       
+
+
                                         indices = []
                                         if i%5 == 0:
                                             i = i-5
@@ -941,17 +941,15 @@ def displayAllTweets(connection):
 			i = i + 1
 	else:
 		print("No suit tweets .")
-	   
-	
-	
+
 def main():
 	connection = getConnection()
-	
+
 	# Let the user login or create an account
 	ret = displayLoginOrCreate(connection)
 	createdAccount = ret[0]
 	user_id = ret[1]
-	
+
 	# There was not a new account created so show the tweets and retweets
 	if not createdAccount:
 		displayTweetsAndRetweets(connection, user_id)
@@ -959,30 +957,30 @@ def main():
 	# MENU
 	while (True):
 		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")
-		
+
 		if inp == "search tweets":
 			displayAllTweets(connection)
-		
+
 		elif inp == "search users":
 			displayAllUsers(connection, user_id)
-			
+
 		elif inp == "compose tweet":
 			displayComposeTweet(connection, user_id, None)
-			
+
 		elif inp == "list followers":
 			displayAllFollowers(connection,user_id)
-			
+
 		elif inp == "manage lists":
 			displayManageLists(connection, user_id)
-		
+
 		elif inp == "logout":
 			break
-			
+
 		else:
 			print("Unrecognized input, please try again.")
-		
+
 	connection.commit()
 	connection.close()
 
 if __name__ == "__main__":
-    main()
+	main()

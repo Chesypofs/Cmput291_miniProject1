@@ -24,7 +24,7 @@ def getConnection():
 # and call login(), createAccount(), or exit() appropriatly
 # Returns a tuple (a, b) where A is a boolean representing
 # whether a new account was created or not, and B is the users user_id
-def loginOrCreatePrompt(connection):
+def displayLoginOrCreate(connection):
 	while (True):
 		inp = input("Type 'login' to login, 'create' to create an account, or 'exit' to exit: ")
 		if inp == "exit":
@@ -660,7 +660,7 @@ def displayUserStats(connection, user_id):
 		print("No tweet.")
 
 # Prompt for managing lists
-def manageLists(connection, user_id):
+def displayManageLists(connection, user_id):
 	inp = ""
 	while (True):
 		inp = input("Type 'my lists' to view your lists, 'on lists' to view the lists you are on, 'create list' to create a new list, or 'back' to return to the last screen: ")
@@ -867,13 +867,17 @@ def removeMemberFromList(connection, user_id, listName, member):
 	
 def main():
 	connection = getConnection()
-	ret = loginOrCreatePrompt(connection)
+	
+	# Let the user login or create an account
+	ret = displayLoginOrCreate(connection)
 	createdAccount = ret[0]
 	user_id = ret[1]
 	
+	# There was not a new account created so show the tweets and retweets
 	if not createdAccount:
 		displayTweetsAndRetweets(connection, user_id)
 
+	# MENU
 	while (True):
 		inp = input("Type 'search tweets' to search tweets, 'search users' to search users, 'compose tweet' to write a tweet, 'list followers' to list your followers, 'manage lists' to see lists, or 'logout' to logout: ")
 		
@@ -890,7 +894,7 @@ def main():
 			displayAllFollowers(connection,user_id)
 			
 		elif inp == "manage lists":
-			manageLists(connection, user_id)
+			displayManageLists(connection, user_id)
 		
 		elif inp == "logout":
 			break

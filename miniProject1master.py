@@ -9,10 +9,8 @@ import time
 # is the username and the second line is the password
 # to log into oracle
 def getConnection():
-	f = open('connection.txt')
-	username = f.readline().strip()
-	password = f.readline().strip()
-	f.close()
+	username = input("Please enter the username to connect to the Oracle database: ")
+	password = input("Please enter the password to connect to the Oracle database: ")
 	try:
 		return cx_Oracle.connect(username, password, "gwynne.cs.ualberta.ca:1521/CRS")
 	except cx_Oracle.DatabaseError as exc:
@@ -665,14 +663,15 @@ def displayMyLists(connection, user_id):
 
 			if inp == "back":
 				break
-			elif int(inp) > 0 and int(inp) < i:
-				displayList(connection, user_id, lists[int(inp) - 1][0])
-				# reprint the lists
-				i = 1
-				for row in lists:
-					print(i, row[0])
-					i = i + 1
-			else:
+			try:
+				if int(inp) > 0 and int(inp) < i:
+					displayList(connection, user_id, lists[int(inp) - 1][0])
+					# reprint the lists
+					i = 1
+					for row in lists:
+						print(i, row[0])
+						i = i + 1
+			except:
 				print("Unrecognized input, please try again.")
 
 # Returns all the lists that the user has
@@ -701,7 +700,7 @@ def displayList(connection, user_id, listName):
 
 	inp = ""
 	while (True):
-		inp = input("Type 'add [member]' to add [member] to the list, 'remove [member] to remove [member] from the list, or 'back' to return to the last screen: ")
+		inp = input("Type 'add [member]' to add [member] to the list, 'remove [member]' to remove [member] from the list, or 'back' to return to the last screen: ")
 		if inp == "back":
 			break
 		elif len(inp) > 4 and inp[:4] == "add ":
@@ -778,7 +777,8 @@ def displayList(connection, user_id, listName):
 # Displays all the lists that the user is on
 def displayOnLists(connection, user_id):
 	lists = getOnLists(connection, user_id)
-
+	if len(lists) == 0:
+		print("You are not on any lists.")
 	for row in lists:
 		print(row)
 
@@ -930,7 +930,7 @@ def displayAllTweets(connection):
 				# A tweet was selected
 				else:
 					#displayTweetStats(connection,  rows[int(inp)-1][1],user_id)
-                                        displayTweetStats(connection, rows[int(inp)-1][0], rows[int(inp)-1][1])
+                                        displayTweetStats(connection, rows[int(inp)-1][1], rows[int(inp)-1][0])
 
 
                                         indices = []

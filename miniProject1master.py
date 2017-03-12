@@ -3,6 +3,7 @@ import sys
 import random
 import datetime
 import time
+import getpass
 
 # Connects to the database and returns the connection object
 # Uses a file named "connection.txt" where the first line
@@ -10,7 +11,7 @@ import time
 # to log into oracle
 def getConnection():
 	username = input("Please enter the username to connect to the Oracle database: ")
-	password = input("Please enter the password to connect to the Oracle database: ")
+	password = getpass.getpass("Please enter the password to connect to the Oracle database: ")
 	try:
 		return cx_Oracle.connect(username, password, "gwynne.cs.ualberta.ca:1521/CRS")
 	except cx_Oracle.DatabaseError as exc:

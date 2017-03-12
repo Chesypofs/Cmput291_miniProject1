@@ -835,7 +835,7 @@ def removeMemberFromList(connection, user_id, listName, member):
 	connection.commit()
 	curs.close()
 	print("Successfully removed member from list.")
-
+# Search for tweets. The user should be able to enter one or more keywords and the system should retrieve every tweet that match at least one of the keywords. The tweets should be ordered based on date from the latest to the oldest.
 def search(connection, inp):
     while True:
         if len(inp)==0:
@@ -862,6 +862,7 @@ def search(connection, inp):
     curs.close()
     return result
 
+# If there are more than 5 matching tweets, only 5 would be shown and the user would be given an option to see more but again 5 at a time. The user should be able to select a tweet and see some statistics about the tweet including the number of retweets and the number of replies. Also the user should be able to compose a reply to a tweet (see the section on composing a tweet), or retweet it (i.e. repost it to all people who follow the user).
 def displayAllTweets(connection):
 	inp = input("Please input keyword: ")
 	rows = search(connection, inp)
@@ -930,7 +931,7 @@ def displayAllTweets(connection):
 
 				# A tweet was selected
 				else:
-					#displayTweetStats(connection,  rows[int(inp)-1][1],user_id)
+					
                                         displayTweetStats(connection, rows[int(inp)-1][1], rows[int(inp)-1][0])
 
 
@@ -984,4 +985,4 @@ def main():
 	connection.close()
 
 if __name__ == "__main__":
-	main()
+    main()
